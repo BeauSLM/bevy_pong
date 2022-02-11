@@ -39,3 +39,25 @@ fn setup(mut commands: Commands) {
     camera.orthographic_projection.scale = 1. / 10.;
     commands.spawn_bundle(camera);
 }
+
+fn left_paddle_move(keys: Res<Input<KeyCode>>, mut query: Query<&mut Transform, With<LeftPaddle>>) {
+    let mut trans = query.iter_mut().next().unwrap();
+    if keys.pressed(KeyCode::W) {
+        trans.translation.y += 1.;
+    }
+
+    if keys.pressed(KeyCode::S) {
+        trans.translation.y -= 1.;
+    }
+}
+
+fn right_paddle_move(keys: Res<Input<KeyCode>>, mut query: Query<&mut Transform, With<RightPaddle>>) {
+    let mut trans = query.iter_mut().next().unwrap();
+    if keys.pressed(KeyCode::Up) {
+        trans.translation.y += 1.;
+    }
+
+    if keys.pressed(KeyCode::Down) {
+        trans.translation.y -= 1.;
+    }
+}
