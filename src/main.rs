@@ -1,8 +1,7 @@
 use bevy::prelude::*;
 
-const FOREGROUND: Color = Color::rgb(0.7, 0.7, 0.7);
-const BACKGROUND: Color = Color::rgb(0.04, 0.04, 0.04);
-const MAX_PADDLE_OFFSET: f32 = 25.;
+const MAX_PADDLE_X: f32 = 50.;
+const MAX_PADDLE_Y: f32 = 25.; // maximum paddle offset
 
 #[derive(Component)]
 struct LeftPaddle;
@@ -11,19 +10,21 @@ struct LeftPaddle;
 struct RightPaddle;
 
 fn main() {
+    const BACKGROUND: Color = Color::rgb(0.04, 0.04, 0.04);
     App::new()
         .add_plugins(DefaultPlugins)
         .insert_resource(ClearColor(BACKGROUND))
         .add_startup_system(setup)
-        .add_system(left_paddle_move)
-        .add_system(right_paddle_move)
+        .add_system(left_paddle_movement)
+        .add_system(right_paddle_movement)
         .run();
 }
 
 fn setup(mut commands: Commands) {
+    const FOREGROUND: Color = Color::rgb(0.7, 0.7, 0.7);
     commands.spawn_bundle(SpriteBundle {
         transform: Transform {
-            translation: Vec3::new(-50., 0., 0.),
+            translation: Vec3::new(-MAX_PADDLE_X, 0., 0.),
             ..Default::default()
         },
         sprite: Sprite {
@@ -36,7 +37,7 @@ fn setup(mut commands: Commands) {
     .insert(LeftPaddle);
     commands.spawn_bundle(SpriteBundle {
         transform: Transform {
-            translation: Vec3::new(50., 0., 0.),
+            translation: Vec3::new(MAX_PADDLE_X, 0., 0.),
             ..Default::default()
         },
         sprite: Sprite {
@@ -52,7 +53,11 @@ fn setup(mut commands: Commands) {
     commands.spawn_bundle(camera);
 }
 
-fn left_paddle_move(keys: Res<Input<KeyCode>>, mut query: Query<&mut Transform, With<LeftPaddle>>) {
+fn left_paddle_movement(
+    keys: Res<Input<KeyCode>>,
+    mut query: Query<&mut Transform, With<LeftPaddle>>
+    ) {
+    // move the left paddle
     let y = &mut query.single_mut().translation.y;
     if keys.pressed(KeyCode::W) {
         *y += 1.;
@@ -62,10 +67,15 @@ fn left_paddle_move(keys: Res<Input<KeyCode>>, mut query: Query<&mut Transform, 
         *y -= 1.;
     }
 
-    *y = y.min(MAX_PADDLE_OFFSET).max(-MAX_PADDLE_OFFSET);
+    *y = y.min(MAX_PADDLE_Y).max(-MAX_PADDLE_Y);
+
 }
 
-fn right_paddle_move(keys: Res<Input<KeyCode>>, mut query: Query<&mut Transform, With<RightPaddle>>) {
+fn right_paddle_movement(
+    keys: Res<Input<KeyCode>>,
+    mut query: Query<&mut Transform, With<RightPaddle>>
+    ) {
+    // move the right paddle
     let y = &mut query.single_mut().translation.y;
     if keys.pressed(KeyCode::Up) {
         *y += 1.;
@@ -75,5 +85,6 @@ fn right_paddle_move(keys: Res<Input<KeyCode>>, mut query: Query<&mut Transform,
         *y -= 1.;
     }
 
-    *y = y.min(MAX_PADDLE_OFFSET).max(-MAX_PADDLE_OFFSET);
+    *y = y.min(MAX_PADDLE_Y).max(-MAX_PADDLE_Y);
 }
+
