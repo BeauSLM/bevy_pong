@@ -2,12 +2,18 @@ use bevy::prelude::*;
 
 const MAX_PADDLE_X: f32 = 50.;
 const MAX_PADDLE_Y: f32 = 25.; // maximum paddle offset
+const PADDLE_HEIGHT: f32 = 20.;
 
 #[derive(Component)]
 struct LeftPaddle;
 
 #[derive(Component)]
 struct RightPaddle;
+
+#[derive(Component)]
+struct Ball {
+    velocity: Vec3,
+}
 
 fn main() {
     const BACKGROUND: Color = Color::rgb(0.04, 0.04, 0.04);
@@ -17,6 +23,8 @@ fn main() {
         .add_startup_system(setup)
         .add_system(left_paddle_movement)
         .add_system(right_paddle_movement)
+        .add_system(ball_movement)
+        .add_system(ball_collision)
         .run();
 }
 
@@ -29,7 +37,7 @@ fn setup(mut commands: Commands) {
         },
         sprite: Sprite {
             color: FOREGROUND,
-            custom_size: Some(Vec2::new(2., 20.)),
+            custom_size: Some(Vec2::new(2., PADDLE_HEIGHT)),
             ..Default::default()
         },
         ..Default::default()
@@ -42,12 +50,23 @@ fn setup(mut commands: Commands) {
         },
         sprite: Sprite {
             color: FOREGROUND,
-            custom_size: Some(Vec2::new(2., 20.)),
+            custom_size: Some(Vec2::new(2., PADDLE_HEIGHT)),
             ..Default::default()
         },
         ..Default::default()
     })
     .insert(RightPaddle);
+    commands.spawn_bundle(SpriteBundle {
+        sprite: Sprite {
+            color: FOREGROUND,
+            custom_size: Some(Vec2::new(5., 5.)),
+            ..Default::default()
+        },
+        ..Default::default()
+    })
+    .insert(Ball {
+        velocity: Vec3::new(-0.5, 0.5, 0.).normalize()
+    });
     let mut camera = OrthographicCameraBundle::new_2d();
     camera.orthographic_projection.scale = 1. / 10.;
     commands.spawn_bundle(camera);
@@ -86,5 +105,10 @@ fn right_paddle_movement(
     }
 
     *y = y.min(MAX_PADDLE_Y).max(-MAX_PADDLE_Y);
+}
+
+fn ball_movement(mut query: Query<(&Ball, &mut Transform)>) {
+    let (ball, mut trans) = query.single_mut();
+    trans.translation += ball.velocity;
 }
 
