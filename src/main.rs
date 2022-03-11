@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::sprite::collide_aabb::{ Collision, collide };
 
 const MAX_PADDLE_X: f32 = 50.;
 const MAX_PADDLE_Y: f32 = 25.; // maximum paddle offset
@@ -32,11 +33,11 @@ fn setup(mut commands: Commands) {
     commands.spawn_bundle(SpriteBundle {
         transform: Transform {
             translation: Vec3::new(-MAX_PADDLE_X, 0., 0.),
+            scale: Vec3::new(2., PADDLE_HEIGHT, 0.),
             ..Default::default()
         },
         sprite: Sprite {
             color: FOREGROUND,
-            custom_size: Some(Vec2::new(2., PADDLE_HEIGHT)),
             ..Default::default()
         },
         ..Default::default()
@@ -45,11 +46,11 @@ fn setup(mut commands: Commands) {
     commands.spawn_bundle(SpriteBundle {
         transform: Transform {
             translation: Vec3::new(MAX_PADDLE_X, 0., 0.),
+            scale: Vec3::new(2., PADDLE_HEIGHT, 0.),
             ..Default::default()
         },
         sprite: Sprite {
             color: FOREGROUND,
-            custom_size: Some(Vec2::new(2., PADDLE_HEIGHT)),
             ..Default::default()
         },
         ..Default::default()
@@ -108,3 +109,43 @@ fn ball_movement(mut query: Query<(&Ball, &mut Transform)>) {
     trans.translation += ball.velocity;
 }
 
+fn ball_collision(
+    mut ball_query: Query<(&mut Ball, &Transform)>,
+    paddle_query: Query<&Transform, With<Paddle>>,
+    ) {
+    let (mut ball, ball_trans) = ball_query.single_mut();
+    let velocity = &mut ball.velocity;
+    const MAX_BALL_Y: f32 = PADDLE_HEIGHT / 2. + MAX_PADDLE_Y;
+    if ball_trans.translation.y > MAX_BALL_Y || ball_trans.translation.y < -MAX_BALL_Y {
+        velocity.y *= -1.;
+    }
+    // DELETE ME
+    // if ball_trans.translation.x > MAX_PADDLE_X || ball_trans.translation.x < -MAX_PADDLE_X {
+    //     velocity.x *= -1.;
+    // }
+
+    for paddle_trans in paddle_query.iter() {
+        let collision = collide(
+            ball_trans.translation,
+            ball_trans.scale.truncate(),
+            paddle_trans.translation,
+            paddle_trans.scale.truncate()
+            );
+        let mut reflect_x = false;
+        let mut reflect_y = false;
+        if let Some(collision) = collision {
+            match collision {
+                Collision::Left => reflect_x = velocity.x > 0.,
+                Collision::Right => reflect_x = velocity.x < 0.,
+                Collision::Top => reflect_y = velocity.y < 0.,
+                Collision::Bottom => reflect_y = velocity.y > 0.,
+            };
+        }
+        if reflect_x {
+            velocity.x *= -1.;
+        }
+        if reflect_y {
+            velocity.y *= -1.;
+        }
+    }
+}
