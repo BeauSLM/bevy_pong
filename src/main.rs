@@ -10,30 +10,43 @@ struct LeftPaddle;
 #[derive(Component)]
 struct RightPaddle;
 
-#[derive(Component)]
-struct Velocity {
-    x: f32,
-    y: f32,
-}
-
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .insert_resource(ClearColor(BACKGROUND))
         .add_startup_system(setup)
+        .add_system(left_paddle_move)
+        .add_system(right_paddle_move)
         .run();
 }
 
 fn setup(mut commands: Commands) {
     commands.spawn_bundle(SpriteBundle {
+        transform: Transform {
+            translation: Vec3::new(-50., 0., 0.),
+            ..Default::default()
+        },
         sprite: Sprite {
             color: FOREGROUND,
-            custom_size: Some(Vec2::new(2., 30.)),
+            custom_size: Some(Vec2::new(2., 20.)),
             ..Default::default()
         },
         ..Default::default()
     })
     .insert(LeftPaddle);
+    commands.spawn_bundle(SpriteBundle {
+        transform: Transform {
+            translation: Vec3::new(50., 0., 0.),
+            ..Default::default()
+        },
+        sprite: Sprite {
+            color: FOREGROUND,
+            custom_size: Some(Vec2::new(2., 20.)),
+            ..Default::default()
+        },
+        ..Default::default()
+    })
+    .insert(RightPaddle);
     let mut camera = OrthographicCameraBundle::new_2d();
     camera.orthographic_projection.scale = 1. / 10.;
     commands.spawn_bundle(camera);
