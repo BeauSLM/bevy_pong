@@ -25,6 +25,7 @@ fn main() {
         .add_system(paddle_movement)
         .add_system(ball_movement)
         .add_system(ball_collision)
+        .add_system_to_stage(CoreStage::PostUpdate, game_reset_system)
         .run();
 }
 
@@ -57,9 +58,12 @@ fn setup(mut commands: Commands) {
     })
     .insert(Paddle::Right);
     commands.spawn_bundle(SpriteBundle {
+        transform: Transform {
+            scale: Vec3::new(5., 5., 0.),
+            ..Default::default()
+        },
         sprite: Sprite {
             color: FOREGROUND,
-            custom_size: Some(Vec2::new(5., 5.)),
             ..Default::default()
         },
         ..Default::default()
@@ -146,6 +150,35 @@ fn ball_collision(
         }
         if reflect_y {
             velocity.y *= -1.;
+        }
+    }
+}
+
+fn game_reset_system(
+    // TODO: find a better setup here
+    mut ball_query: Query<(&mut Ball, &mut Transform), Without<Paddle>>,
+    mut paddles_query: Query<&mut Transform, With<Paddle>>
+    ) {
+    const MAX_BALL_X: f32 = MAX_PADDLE_X + 10.;
+    let (mut ball, mut ball_trans) = ball_query.single_mut();
+    let mut scored = true;
+    // TODO: find some slick way to write this out
+    match ball_trans.translation.x {
+        x if x < -MAX_BALL_X => {
+            // score for right-side player
+            ball.velocity = Vec3::new(-0.5, 0.5, 0.).normalize();
+        },
+        x if x > MAX_BALL_X => {
+            // score for right-side player
+            ball.velocity = Vec3::new(0.5, -0.5, 0.).normalize();
+        },
+        _ => scored = false
+    };
+
+    if scored {
+        ball_trans.translation = Vec3::ZERO;
+        for mut paddle_trans in paddles_query.iter_mut() {
+            paddle_trans.translation.y = 0.;
         }
     }
 }
