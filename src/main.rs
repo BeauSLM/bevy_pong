@@ -5,7 +5,7 @@ const MAX_PADDLE_X: f32 = 50.;
 const MAX_PADDLE_Y: f32 = 25.; // maximum paddle offset
 const PADDLE_HEIGHT: f32 = 20.;
 
-#[derive(Component, Clone, Copy)]
+#[derive(Component)]
 enum Paddle {
     Left,
     Right,
@@ -14,6 +14,11 @@ enum Paddle {
 #[derive(Component)]
 struct Ball {
     velocity: Vec3,
+}
+
+struct Scoreboard {
+    left: usize,
+    right: usize,
 }
 
 fn main() {
@@ -25,6 +30,12 @@ fn main() {
         .add_system(paddle_movement)
         .add_system(ball_movement)
         .add_system(ball_collision)
+        .insert_resource(
+            Scoreboard {
+                left: 0,
+                right: 0,
+            }
+            )
         .add_system_to_stage(CoreStage::PostUpdate, game_reset_system)
         .run();
 }
@@ -157,7 +168,8 @@ fn ball_collision(
 fn game_reset_system(
     // TODO: find a better setup here
     mut ball_query: Query<(&mut Ball, &mut Transform), Without<Paddle>>,
-    mut paddles_query: Query<&mut Transform, With<Paddle>>
+    mut paddles_query: Query<&mut Transform, With<Paddle>>,
+    mut score: ResMut<Scoreboard>,
     ) {
     const MAX_BALL_X: f32 = MAX_PADDLE_X + 10.;
     let (mut ball, mut ball_trans) = ball_query.single_mut();
@@ -166,11 +178,15 @@ fn game_reset_system(
     match ball_trans.translation.x {
         x if x < -MAX_BALL_X => {
             // score for right-side player
+            score.right += 1;
             ball.velocity = Vec3::new(-0.5, 0.5, 0.).normalize();
+            println!("Right score: {}", score.right);
         },
         x if x > MAX_BALL_X => {
             // score for right-side player
+            score.left += 1;
             ball.velocity = Vec3::new(0.5, -0.5, 0.).normalize();
+            println!("Left score: {}", score.left);
         },
         _ => scored = false
     };
