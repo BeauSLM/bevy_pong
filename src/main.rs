@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy::sprite::collide_aabb::{ Collision, collide };
+use bevy::sprite::collide_aabb::{collide, Collision};
 
 const MAX_PADDLE_X: f32 = 50.;
 const MAX_PADDLE_Y: f32 = 25.; // maximum paddle offset
@@ -30,67 +30,62 @@ fn main() {
         .add_system(paddle_movement)
         .add_system(ball_movement)
         .add_system(ball_collision)
-        .insert_resource(
-            Scoreboard {
-                left: 0,
-                right: 0,
-            }
-            )
+        .insert_resource(Scoreboard { left: 0, right: 0 })
         .add_system_to_stage(CoreStage::PostUpdate, game_reset_system)
         .run();
 }
 
 fn setup(mut commands: Commands) {
     const FOREGROUND: Color = Color::rgb(0.7, 0.7, 0.7);
-    commands.spawn_bundle(SpriteBundle {
-        transform: Transform {
-            translation: Vec3::new(-MAX_PADDLE_X, 0., 0.),
-            scale: Vec3::new(2., PADDLE_HEIGHT, 0.),
+    commands
+        .spawn_bundle(SpriteBundle {
+            transform: Transform {
+                translation: Vec3::new(-MAX_PADDLE_X, 0., 0.),
+                scale: Vec3::new(2., PADDLE_HEIGHT, 0.),
+                ..Default::default()
+            },
+            sprite: Sprite {
+                color: FOREGROUND,
+                ..Default::default()
+            },
             ..Default::default()
-        },
-        sprite: Sprite {
-            color: FOREGROUND,
+        })
+        .insert(Paddle::Left);
+    commands
+        .spawn_bundle(SpriteBundle {
+            transform: Transform {
+                translation: Vec3::new(MAX_PADDLE_X, 0., 0.),
+                scale: Vec3::new(2., PADDLE_HEIGHT, 0.),
+                ..Default::default()
+            },
+            sprite: Sprite {
+                color: FOREGROUND,
+                ..Default::default()
+            },
             ..Default::default()
-        },
-        ..Default::default()
-    })
-    .insert(Paddle::Left);
-    commands.spawn_bundle(SpriteBundle {
-        transform: Transform {
-            translation: Vec3::new(MAX_PADDLE_X, 0., 0.),
-            scale: Vec3::new(2., PADDLE_HEIGHT, 0.),
+        })
+        .insert(Paddle::Right);
+    commands
+        .spawn_bundle(SpriteBundle {
+            transform: Transform {
+                scale: Vec3::new(5., 5., 0.),
+                ..Default::default()
+            },
+            sprite: Sprite {
+                color: FOREGROUND,
+                ..Default::default()
+            },
             ..Default::default()
-        },
-        sprite: Sprite {
-            color: FOREGROUND,
-            ..Default::default()
-        },
-        ..Default::default()
-    })
-    .insert(Paddle::Right);
-    commands.spawn_bundle(SpriteBundle {
-        transform: Transform {
-            scale: Vec3::new(5., 5., 0.),
-            ..Default::default()
-        },
-        sprite: Sprite {
-            color: FOREGROUND,
-            ..Default::default()
-        },
-        ..Default::default()
-    })
-    .insert(Ball {
-        velocity: Vec3::new(-0.5, 0.5, 0.).normalize()
-    });
+        })
+        .insert(Ball {
+            velocity: Vec3::new(-0.5, 0.5, 0.).normalize(),
+        });
     let mut camera = OrthographicCameraBundle::new_2d();
     camera.orthographic_projection.scale = 1. / 10.;
     commands.spawn_bundle(camera);
 }
 
-fn paddle_movement(
-    keys: Res<Input<KeyCode>>,
-    mut query: Query<(&mut Transform, &Paddle)>
-    ) {
+fn paddle_movement(keys: Res<Input<KeyCode>>, mut query: Query<(&mut Transform, &Paddle)>) {
     // move the left paddle
     for (mut trans, paddle) in query.iter_mut() {
         let y = &mut trans.translation.y;
@@ -103,7 +98,7 @@ fn paddle_movement(
                 if keys.pressed(KeyCode::S) {
                     *y -= 1.;
                 }
-            },
+            }
             Paddle::Right => {
                 if keys.pressed(KeyCode::Up) {
                     *y += 1.;
@@ -127,7 +122,7 @@ fn ball_movement(mut query: Query<(&Ball, &mut Transform)>) {
 fn ball_collision(
     mut ball_query: Query<(&mut Ball, &Transform)>,
     paddle_query: Query<&Transform, With<Paddle>>,
-    ) {
+) {
     let (mut ball, ball_trans) = ball_query.single_mut();
     let velocity = &mut ball.velocity;
     const MAX_BALL_Y: f32 = PADDLE_HEIGHT / 2. + MAX_PADDLE_Y;
@@ -144,8 +139,8 @@ fn ball_collision(
             ball_trans.translation,
             ball_trans.scale.truncate(),
             paddle_trans.translation,
-            paddle_trans.scale.truncate()
-            );
+            paddle_trans.scale.truncate(),
+        );
         let mut reflect_x = false;
         let mut reflect_y = false;
         if let Some(collision) = collision {
@@ -170,7 +165,7 @@ fn game_reset_system(
     mut ball_query: Query<(&mut Ball, &mut Transform), Without<Paddle>>,
     mut paddles_query: Query<&mut Transform, With<Paddle>>,
     mut score: ResMut<Scoreboard>,
-    ) {
+) {
     const MAX_BALL_X: f32 = MAX_PADDLE_X + 10.;
     let (mut ball, mut ball_trans) = ball_query.single_mut();
     let mut scored = true;
@@ -181,14 +176,14 @@ fn game_reset_system(
             score.right += 1;
             ball.velocity = Vec3::new(-0.5, 0.5, 0.).normalize();
             println!("Right score: {}", score.right);
-        },
+        }
         x if x > MAX_BALL_X => {
             // score for right-side player
             score.left += 1;
             ball.velocity = Vec3::new(0.5, -0.5, 0.).normalize();
             println!("Left score: {}", score.left);
-        },
-        _ => scored = false
+        }
+        _ => scored = false,
     };
 
     if scored {
