@@ -16,10 +16,19 @@ struct Ball {
     velocity: Vec3,
 }
 
+#[derive(Component)]
+struct LeftScore;
+
+#[derive(Component)]
+struct RightScore;
+
 struct Scoreboard {
     left: usize,
     right: usize,
 }
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemLabel)]
+struct ScoreUpdateLabel;
 
 fn main() {
     const BACKGROUND: Color = Color::rgb(0.04, 0.04, 0.04);
@@ -31,12 +40,51 @@ fn main() {
         .add_system(ball_movement)
         .add_system(ball_collision)
         .insert_resource(Scoreboard { left: 0, right: 0 })
-        .add_system_to_stage(CoreStage::PostUpdate, game_reset_system)
+        .add_system_to_stage(
+            CoreStage::PostUpdate,
+            game_reset_system
+            .label(ScoreUpdateLabel))
+        .add_system_to_stage(
+            CoreStage::PostUpdate,
+            left_score.after(ScoreUpdateLabel))
+        .add_system_to_stage(
+            CoreStage::PostUpdate,
+            right_score.after(ScoreUpdateLabel))
         .run();
 }
 
-fn setup(mut commands: Commands) {
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     const FOREGROUND: Color = Color::rgb(0.7, 0.7, 0.7);
+    let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+    let text_style = TextStyle {
+        font,
+        font_size: 20.0,
+        color: Color::WHITE,
+    };
+    let text_alignment = TextAlignment {
+        vertical: VerticalAlign::Center,
+        horizontal: HorizontalAlign::Center,
+    };
+    commands
+        .spawn_bundle(Text2dBundle {
+            text: Text::with_section("10", text_style.clone(), text_alignment),
+            transform: Transform {
+                translation: Vec3::new(-20., 20., 0.),
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .insert(LeftScore);
+    commands
+        .spawn_bundle(Text2dBundle {
+            text: Text::with_section("10", text_style, text_alignment),
+            transform: Transform {
+                translation: Vec3::new(20., 20., 0.),
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .insert(RightScore);
     commands
         .spawn_bundle(SpriteBundle {
             transform: Transform {
@@ -192,4 +240,20 @@ fn game_reset_system(
             paddle_trans.translation.y = 0.;
         }
     }
+}
+
+fn left_score(
+    scoreboard: Res<Scoreboard>,
+    mut display: Query<&mut Text, With<LeftScore>>,
+    ) {
+    let mut text = display.single_mut();
+    text.sections[0].value = format!("{}", scoreboard.left);
+}
+
+fn right_score(
+    scoreboard: Res<Scoreboard>,
+    mut display: Query<&mut Text, With<RightScore>>,
+    ) {
+    let mut text = display.single_mut();
+    text.sections[0].value = format!("{}", scoreboard.right);
 }
