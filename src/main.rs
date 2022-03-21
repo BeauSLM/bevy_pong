@@ -223,13 +223,11 @@ fn game_reset_system(
             // score for right-side player
             score.right += 1;
             ball.velocity = Vec3::new(-0.5, 0.5, 0.).normalize();
-            println!("Right score: {}", score.right);
         }
         x if x > MAX_BALL_X => {
             // score for right-side player
             score.left += 1;
             ball.velocity = Vec3::new(0.5, -0.5, 0.).normalize();
-            println!("Left score: {}", score.left);
         }
         _ => scored = false,
     };
