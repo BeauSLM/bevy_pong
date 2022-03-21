@@ -177,11 +177,6 @@ fn ball_collision(
     if ball_trans.translation.y > MAX_BALL_Y || ball_trans.translation.y < -MAX_BALL_Y {
         velocity.y *= -1.;
     }
-    // DELETE ME
-    // if ball_trans.translation.x > MAX_PADDLE_X || ball_trans.translation.x < -MAX_PADDLE_X {
-    //     velocity.x *= -1.;
-    // }
-
     for paddle_trans in paddle_query.iter() {
         let collision = collide(
             ball_trans.translation,
