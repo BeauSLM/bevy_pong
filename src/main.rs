@@ -4,6 +4,7 @@ use bevy::sprite::collide_aabb::{collide, Collision};
 const MAX_PADDLE_X: f32 = 500.;
 const MAX_PADDLE_Y: f32 = 300.; // maximum paddle offset
 const PADDLE_HEIGHT: f32 = 100.;
+const FOREGROUND: Color = Color::rgb(0.7, 0.7, 0.7);
 
 #[derive(Component)]
 enum Paddle {
@@ -27,6 +28,20 @@ struct Scoreboard {
     right: usize,
 }
 
+struct BallRespawnTimer {
+    timer: Timer,
+    active: bool,
+}
+
+impl Default for BallRespawnTimer {
+    fn default() -> Self {
+        BallRespawnTimer {
+            timer: Timer::from_seconds(0.5, false),
+            active: false
+        }
+    }
+}
+
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemLabel)]
 struct ScoreUpdateLabel;
 
@@ -40,15 +55,18 @@ fn main() {
         .add_system(ball_movement)
         .add_system(ball_collision)
         .insert_resource(Scoreboard { left: 0, right: 0 })
+        .init_resource::<BallRespawnTimer>()
+        .add_system_to_stage(
+            CoreStage::PreUpdate, 
+            ball_respawn)
         .add_system_to_stage(
             CoreStage::PostUpdate,
-            game_reset_system
+            score_system
             .label(ScoreUpdateLabel))
         .run();
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    const FOREGROUND: Color = Color::rgb(0.7, 0.7, 0.7);
     let font = asset_server.load("fonts/FiraSans-Bold.ttf");
     let text_style = TextStyle {
         font,
@@ -157,80 +175,108 @@ fn paddle_movement(keys: Res<Input<KeyCode>>, mut query: Query<(&mut Transform, 
 
 fn ball_movement(mut query: Query<(&Ball, &mut Transform)>) {
     const BALL_SPEED: f32 = 7.5;
-    let (ball, mut trans) = query.single_mut();
-    trans.translation += ball.velocity * BALL_SPEED;
+    if let Ok((ball, mut trans)) = query.get_single_mut() {
+        trans.translation += ball.velocity * BALL_SPEED;
+    }
 }
 
 fn ball_collision(
     mut ball_query: Query<(&mut Ball, &Transform)>,
     paddle_query: Query<&Transform, With<Paddle>>,
 ) {
-    let (mut ball, ball_trans) = ball_query.single_mut();
-    let velocity = &mut ball.velocity;
-    const MAX_BALL_Y: f32 = PADDLE_HEIGHT / 2. + MAX_PADDLE_Y;
-    if ball_trans.translation.y > MAX_BALL_Y || ball_trans.translation.y < -MAX_BALL_Y {
-        velocity.y *= -1.;
-    }
-    for paddle_trans in paddle_query.iter() {
-        let collision = collide(
-            ball_trans.translation,
-            ball_trans.scale.truncate(),
-            paddle_trans.translation,
-            paddle_trans.scale.truncate(),
-        );
-        let mut reflect_x = false;
-        let mut reflect_y = false;
-        if let Some(collision) = collision {
-            match collision {
-                Collision::Left => reflect_x = velocity.x > 0.,
-                Collision::Right => reflect_x = velocity.x < 0.,
-                Collision::Top => reflect_y = velocity.y < 0.,
-                Collision::Bottom => reflect_y = velocity.y > 0.,
-            };
-        }
-        if reflect_x {
-            velocity.x *= -1.;
-        }
-        if reflect_y {
+    if let Ok((mut ball, ball_trans)) = ball_query.get_single_mut() {
+        let velocity = &mut ball.velocity;
+        const MAX_BALL_Y: f32 = PADDLE_HEIGHT / 2. + MAX_PADDLE_Y;
+        if ball_trans.translation.y > MAX_BALL_Y || ball_trans.translation.y < -MAX_BALL_Y {
             velocity.y *= -1.;
+        }
+        for paddle_trans in paddle_query.iter() {
+            let collision = collide(
+                ball_trans.translation,
+                ball_trans.scale.truncate(),
+                paddle_trans.translation,
+                paddle_trans.scale.truncate(),
+                );
+            let mut reflect_x = false;
+            let mut reflect_y = false;
+            if let Some(collision) = collision {
+                match collision {
+                    Collision::Left => reflect_x = velocity.x > 0.,
+                    Collision::Right => reflect_x = velocity.x < 0.,
+                    Collision::Top => reflect_y = velocity.y < 0.,
+                    Collision::Bottom => reflect_y = velocity.y > 0.,
+                };
+            }
+            if reflect_x {
+                velocity.x *= -1.;
+            }
+            if reflect_y {
+                velocity.y *= -1.;
+            }
         }
     }
 }
 
-fn game_reset_system(
-    // TODO: find a better setup here
-    mut ball_query: Query<(&mut Ball, &mut Transform), Without<Paddle>>,
-    mut paddles_query: Query<&mut Transform, With<Paddle>>,
+// TODO: find a decent name here
+fn score_system(
+    ball_query: Query<(Entity, &Transform), With<Ball>>,
     mut score: ResMut<Scoreboard>,
     mut left_score: Query<&mut Text, (With<LeftScore>, Without<RightScore>)>,
     mut right_score: Query<&mut Text, With<RightScore>>,
+    mut timer: ResMut<BallRespawnTimer>,
+    mut commands: Commands,
 ) {
     const MAX_BALL_X: f32 = MAX_PADDLE_X + 10.;
-    let (mut ball, mut ball_trans) = ball_query.single_mut();
-    let mut scored = true;
-    // TODO: find some slick way to write this out
-    match ball_trans.translation.x {
-        x if x < -MAX_BALL_X => {
-            // score for right-side player
-            ball.velocity = Vec3::new(-0.5, 0.5, 0.).normalize();
-            score.right += 1;
-            let mut text = right_score.single_mut();
-            text.sections[0].value = format!("{}", score.right);
-        }
-        x if x > MAX_BALL_X => {
-            // score for right-side player
-            ball.velocity = Vec3::new(0.5, -0.5, 0.).normalize();
-            score.left += 1;
-            let mut text = left_score.single_mut();
-            text.sections[0].value = format!("{}", score.left);
-        }
-        _ => scored = false,
-    };
-
-    if scored {
-        ball_trans.translation = Vec3::ZERO;
-        for mut paddle_trans in paddles_query.iter_mut() {
-            paddle_trans.translation.y = 0.;
+    if let Ok((ball_entity, ball_trans)) = ball_query.get_single() {
+        let mut scored = true;
+        // TODO: find some slick way to write this out
+        match ball_trans.translation.x {
+            x if x < -MAX_BALL_X => {
+                // score for right-side player
+                score.right += 1;
+                let mut text = right_score.single_mut();
+                text.sections[0].value = format!("{}", score.right);
+            }
+            x if x > MAX_BALL_X => {
+                // score for right-side player
+                score.left += 1;
+                let mut text = left_score.single_mut();
+                text.sections[0].value = format!("{}", score.left);
+            }
+            _ => scored = false,
+        };
+        if scored {
+            timer.active = true;
+            commands.entity(ball_entity).despawn();
         }
     }
+}
+
+fn ball_respawn(
+    time: Res<Time>,
+    mut dir: Local<bool>,
+    mut respawn: ResMut<BallRespawnTimer>,
+    mut commands: Commands,
+    ) {
+    // if timer isn't active, or not finished, there's nothing to do
+    if !respawn.active || !respawn.timer.tick(time.delta()).finished() { return; }
+    let spawn_dir = if *dir { 0.5 } else { -0.5 };
+    *dir = !*dir;
+    commands
+        .spawn_bundle(SpriteBundle {
+            transform: Transform {
+                scale: Vec3::new(25., 25., 0.),
+                ..Default::default()
+            },
+            sprite: Sprite {
+                color: FOREGROUND,
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .insert(Ball {
+            velocity: Vec3::new(spawn_dir, 0.5, 0.).normalize(),
+        });
+    respawn.active = false;
+    respawn.timer.reset();
 }
