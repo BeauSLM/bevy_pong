@@ -1,9 +1,9 @@
 use bevy::prelude::*;
 use bevy::sprite::collide_aabb::{collide, Collision};
 
-const MAX_PADDLE_X: f32 = 50.;
-const MAX_PADDLE_Y: f32 = 25.; // maximum paddle offset
-const PADDLE_HEIGHT: f32 = 20.;
+const MAX_PADDLE_X: f32 = 500.;
+const MAX_PADDLE_Y: f32 = 300.; // maximum paddle offset
+const PADDLE_HEIGHT: f32 = 100.;
 
 #[derive(Component)]
 enum Paddle {
@@ -52,7 +52,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     let font = asset_server.load("fonts/FiraSans-Bold.ttf");
     let text_style = TextStyle {
         font,
-        font_size: 20.0,
+        font_size: 90.0,
         color: Color::WHITE,
     };
     let text_alignment = TextAlignment {
@@ -63,7 +63,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         .spawn_bundle(Text2dBundle {
             text: Text::with_section("0", text_style.clone(), text_alignment),
             transform: Transform {
-                translation: Vec3::new(-20., 20., 0.),
+                translation: Vec3::new(-50., 300., 0.),
                 ..Default::default()
             },
             ..Default::default()
@@ -73,7 +73,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         .spawn_bundle(Text2dBundle {
             text: Text::with_section("0", text_style, text_alignment),
             transform: Transform {
-                translation: Vec3::new(20., 20., 0.),
+                translation: Vec3::new(50., 300., 0.),
                 ..Default::default()
             },
             ..Default::default()
@@ -83,7 +83,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         .spawn_bundle(SpriteBundle {
             transform: Transform {
                 translation: Vec3::new(-MAX_PADDLE_X, 0., 0.),
-                scale: Vec3::new(2., PADDLE_HEIGHT, 0.),
+                scale: Vec3::new(15., PADDLE_HEIGHT, 0.),
                 ..Default::default()
             },
             sprite: Sprite {
@@ -97,7 +97,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         .spawn_bundle(SpriteBundle {
             transform: Transform {
                 translation: Vec3::new(MAX_PADDLE_X, 0., 0.),
-                scale: Vec3::new(2., PADDLE_HEIGHT, 0.),
+                scale: Vec3::new(15., PADDLE_HEIGHT, 0.),
                 ..Default::default()
             },
             sprite: Sprite {
@@ -110,7 +110,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands
         .spawn_bundle(SpriteBundle {
             transform: Transform {
-                scale: Vec3::new(5., 5., 0.),
+                scale: Vec3::new(25., 25., 0.),
                 ..Default::default()
             },
             sprite: Sprite {
@@ -122,32 +122,31 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         .insert(Ball {
             velocity: Vec3::new(-0.5, 0.5, 0.).normalize(),
         });
-    let mut camera = OrthographicCameraBundle::new_2d();
-    camera.orthographic_projection.scale = 1. / 10.;
-    commands.spawn_bundle(camera);
+    commands.spawn_bundle(OrthographicCameraBundle::new_2d());
 }
 
 fn paddle_movement(keys: Res<Input<KeyCode>>, mut query: Query<(&mut Transform, &Paddle)>) {
     // move the left paddle
+    const PADDLE_SPEED: f32 = 5.;
     for (mut trans, paddle) in query.iter_mut() {
         let y = &mut trans.translation.y;
         match *paddle {
             Paddle::Left => {
                 if keys.pressed(KeyCode::W) {
-                    *y += 1.;
+                    *y += PADDLE_SPEED;
                 }
 
                 if keys.pressed(KeyCode::S) {
-                    *y -= 1.;
+                    *y -= PADDLE_SPEED;
                 }
             }
             Paddle::Right => {
                 if keys.pressed(KeyCode::Up) {
-                    *y += 1.;
+                    *y += PADDLE_SPEED;
                 }
 
                 if keys.pressed(KeyCode::Down) {
-                    *y -= 1.;
+                    *y -= PADDLE_SPEED;
                 }
             }
         }
@@ -157,8 +156,9 @@ fn paddle_movement(keys: Res<Input<KeyCode>>, mut query: Query<(&mut Transform, 
 }
 
 fn ball_movement(mut query: Query<(&Ball, &mut Transform)>) {
+    const BALL_SPEED: f32 = 7.5;
     let (ball, mut trans) = query.single_mut();
-    trans.translation += ball.velocity;
+    trans.translation += ball.velocity * BALL_SPEED;
 }
 
 fn ball_collision(
