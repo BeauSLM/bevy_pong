@@ -44,12 +44,6 @@ fn main() {
             CoreStage::PostUpdate,
             game_reset_system
             .label(ScoreUpdateLabel))
-        .add_system_to_stage(
-            CoreStage::PostUpdate,
-            left_score.after(ScoreUpdateLabel))
-        .add_system_to_stage(
-            CoreStage::PostUpdate,
-            right_score.after(ScoreUpdateLabel))
         .run();
 }
 
@@ -67,7 +61,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     };
     commands
         .spawn_bundle(Text2dBundle {
-            text: Text::with_section("10", text_style.clone(), text_alignment),
+            text: Text::with_section("0", text_style.clone(), text_alignment),
             transform: Transform {
                 translation: Vec3::new(-20., 20., 0.),
                 ..Default::default()
@@ -77,7 +71,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         .insert(LeftScore);
     commands
         .spawn_bundle(Text2dBundle {
-            text: Text::with_section("10", text_style, text_alignment),
+            text: Text::with_section("0", text_style, text_alignment),
             transform: Transform {
                 translation: Vec3::new(20., 20., 0.),
                 ..Default::default()
@@ -208,6 +202,8 @@ fn game_reset_system(
     mut ball_query: Query<(&mut Ball, &mut Transform), Without<Paddle>>,
     mut paddles_query: Query<&mut Transform, With<Paddle>>,
     mut score: ResMut<Scoreboard>,
+    mut left_score: Query<&mut Text, (With<LeftScore>, Without<RightScore>)>,
+    mut right_score: Query<&mut Text, With<RightScore>>,
 ) {
     const MAX_BALL_X: f32 = MAX_PADDLE_X + 10.;
     let (mut ball, mut ball_trans) = ball_query.single_mut();
@@ -216,13 +212,17 @@ fn game_reset_system(
     match ball_trans.translation.x {
         x if x < -MAX_BALL_X => {
             // score for right-side player
-            score.right += 1;
             ball.velocity = Vec3::new(-0.5, 0.5, 0.).normalize();
+            score.right += 1;
+            let mut text = right_score.single_mut();
+            text.sections[0].value = format!("{}", score.right);
         }
         x if x > MAX_BALL_X => {
             // score for right-side player
-            score.left += 1;
             ball.velocity = Vec3::new(0.5, -0.5, 0.).normalize();
+            score.left += 1;
+            let mut text = left_score.single_mut();
+            text.sections[0].value = format!("{}", score.left);
         }
         _ => scored = false,
     };
@@ -233,20 +233,4 @@ fn game_reset_system(
             paddle_trans.translation.y = 0.;
         }
     }
-}
-
-fn left_score(
-    scoreboard: Res<Scoreboard>,
-    mut display: Query<&mut Text, With<LeftScore>>,
-    ) {
-    let mut text = display.single_mut();
-    text.sections[0].value = format!("{}", scoreboard.left);
-}
-
-fn right_score(
-    scoreboard: Res<Scoreboard>,
-    mut display: Query<&mut Text, With<RightScore>>,
-    ) {
-    let mut text = display.single_mut();
-    text.sections[0].value = format!("{}", scoreboard.right);
 }
