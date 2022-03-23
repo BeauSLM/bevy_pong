@@ -30,14 +30,12 @@ struct Scoreboard {
 
 struct BallRespawnTimer {
     timer: Timer,
-    active: bool,
 }
 
 impl Default for BallRespawnTimer {
     fn default() -> Self {
         BallRespawnTimer {
             timer: Timer::from_seconds(0.5, false),
-            active: false
         }
     }
 }
@@ -55,7 +53,6 @@ fn main() {
         .add_system(ball_movement)
         .add_system(ball_collision)
         .insert_resource(Scoreboard { left: 0, right: 0 })
-        .init_resource::<BallRespawnTimer>()
         .add_system_to_stage(
             CoreStage::PreUpdate, 
             ball_respawn)
@@ -143,8 +140,8 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn_bundle(OrthographicCameraBundle::new_2d());
 }
 
+// TODO: this is ugly, kill it
 fn paddle_movement(keys: Res<Input<KeyCode>>, mut query: Query<(&mut Transform, &Paddle)>) {
-    // move the left paddle
     const PADDLE_SPEED: f32 = 5.;
     for (mut trans, paddle) in query.iter_mut() {
         let y = &mut trans.translation.y;
@@ -223,7 +220,6 @@ fn score_system(
     mut score: ResMut<Scoreboard>,
     mut left_score: Query<&mut Text, (With<LeftScore>, Without<RightScore>)>,
     mut right_score: Query<&mut Text, With<RightScore>>,
-    mut timer: ResMut<BallRespawnTimer>,
     mut commands: Commands,
 ) {
     const MAX_BALL_X: f32 = MAX_PADDLE_X + 10.;
@@ -246,8 +242,8 @@ fn score_system(
             _ => scored = false,
         };
         if scored {
-            timer.active = true;
             commands.entity(ball_entity).despawn();
+            commands.insert_resource(BallRespawnTimer::default());
         }
     }
 }
@@ -255,28 +251,29 @@ fn score_system(
 fn ball_respawn(
     time: Res<Time>,
     mut dir: Local<bool>,
-    mut respawn: ResMut<BallRespawnTimer>,
+    mut respawn: Option<ResMut<BallRespawnTimer>>,
     mut commands: Commands,
     ) {
     // if timer isn't active, or not finished, there's nothing to do
-    if !respawn.active || !respawn.timer.tick(time.delta()).finished() { return; }
-    let spawn_dir = if *dir { 0.5 } else { -0.5 };
-    *dir = !*dir;
-    commands
-        .spawn_bundle(SpriteBundle {
-            transform: Transform {
-                scale: Vec3::new(25., 25., 0.),
+    if let Some(mut respawn) = respawn {
+        if !respawn.timer.tick(time.delta()).finished() { return; }
+        let spawn_dir = if *dir { 0.5 } else { -0.5 };
+        *dir = !*dir;
+        commands
+            .spawn_bundle(SpriteBundle {
+                transform: Transform {
+                    scale: Vec3::new(25., 25., 0.),
+                    ..Default::default()
+                },
+                sprite: Sprite {
+                    color: FOREGROUND,
+                    ..Default::default()
+                },
                 ..Default::default()
-            },
-            sprite: Sprite {
-                color: FOREGROUND,
-                ..Default::default()
-            },
-            ..Default::default()
-        })
+            })
         .insert(Ball {
             velocity: Vec3::new(spawn_dir, 0.5, 0.).normalize(),
         });
-    respawn.active = false;
-    respawn.timer.reset();
+        commands.remove_resource::<BallRespawnTimer>()
+    }
 }
