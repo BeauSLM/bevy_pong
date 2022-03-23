@@ -23,6 +23,7 @@ struct LeftScore;
 #[derive(Component)]
 struct RightScore;
 
+#[derive(Default)]
 struct Scoreboard {
     left: usize,
     right: usize,
@@ -52,7 +53,8 @@ fn main() {
         .add_system(paddle_movement)
         .add_system(ball_movement)
         .add_system(ball_collision)
-        .insert_resource(Scoreboard { left: 0, right: 0 })
+        .init_resource::<Scoreboard>()
+        .init_resource::<BallRespawnTimer>()
         .add_system_to_stage(
             CoreStage::PreUpdate, 
             ball_respawn)
@@ -122,21 +124,21 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             ..Default::default()
         })
         .insert(Paddle::Right);
-    commands
-        .spawn_bundle(SpriteBundle {
-            transform: Transform {
-                scale: Vec3::new(25., 25., 0.),
-                ..Default::default()
-            },
-            sprite: Sprite {
-                color: FOREGROUND,
-                ..Default::default()
-            },
-            ..Default::default()
-        })
-        .insert(Ball {
-            velocity: Vec3::new(-0.5, 0.5, 0.).normalize(),
-        });
+    // commands
+    //     .spawn_bundle(SpriteBundle {
+    //         transform: Transform {
+    //             scale: Vec3::new(25., 25., 0.),
+    //             ..Default::default()
+    //         },
+    //         sprite: Sprite {
+    //             color: FOREGROUND,
+    //             ..Default::default()
+    //         },
+    //         ..Default::default()
+    //     })
+    //     .insert(Ball {
+    //         velocity: Vec3::new(-0.5, 0.5, 0.).normalize(),
+    //     });
     commands.spawn_bundle(OrthographicCameraBundle::new_2d());
 }
 
